@@ -1,12 +1,10 @@
-"scripts": {
-  "start": "node server.js"
-}
 {
   "name": "stripe-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Stripe Terminal backend for BBPOS WisePOS E",
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
