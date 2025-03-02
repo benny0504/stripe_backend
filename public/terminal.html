@@ -1,104 +1,93 @@
-const express = require("express");
-const app = express();
-const { resolve } = require("path");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY); // Use live secret key in .env or Render
-const cors = require("cors");
+<!DOCTYPE html> <!-- Ensure Standards Mode -->
+<html>
+<head>
+  <title>Stripe Terminal Payment</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+    button { padding: 10px 20px; font-size: 16px; }
+    #status { color: blue; margin-top: 10px; }
+  </style>
+  <script src="https://js.stripe.com/v3/" onload="console.log('Stripe.js loaded')"></script>
+  <script src="https://js.stripe.com/terminal/v1/" onload="console.log('Terminal SDK loaded'); initTerminal()"></script>
+</head>
+<body>
+  <h1>Take a Payment</h1>
+  <input id="amount" type="number" placeholder="Enter amount in cents (e.g., 100, 500, 2000)" style="padding: 5px;">
+  <button onclick="startPayment()">Pay Now</button>
+  <p id="status">Status: Ready</p>
 
-// Middleware setup
-app.use(express.static("public")); // Serve static files (e.g., terminal.html)
-app.use(express.json()); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
-app.use(cors({
-  origin: ["https://stripe-backend-iu4y.onrender.com", "http://localhost:8080"] // Allow Render HTTPS and local dev
-}));
+  <script>
+    let stripe, terminal;
 
-// Endpoint to create a connection token for the Stripe Terminal
-app.post("/connection_token", async (req, res) => {
-  try {
-    const token = await stripe.terminal.connectionTokens.create();
-    res.json({ secret: token.secret, timestamp: new Date().toISOString() });
-  } catch (error) {
-    console.error("Error in /connection_token:", error.message, { stack: error.stack });
-    res.status(500).json({ error: error.message, timestamp: new Date().toISOString() });
-  }
-});
-
-// Endpoint to create a payment intent
-app.post("/create_payment_intent", async (req, res) => {
-  try {
-    const { amount } = req.body;
-    if (!amount || typeof amount !== "number" || amount <= 0) {
-      return res.status(400).json({ error: "Invalid or missing amount", timestamp: new Date().toISOString() });
-    }
-    const intent = await stripe.paymentIntents.create({
-      amount,
-      currency: "usd",
-      payment_method_types: ["card_present"],
-      capture_method: "automatic",
-    });
-    res.json({ clientSecret: intent.client_secret, timestamp: new Date().toISOString() });
-  } catch (error) {
-    console.error("Error in /create_payment_intent:", error.message, { stack: error.stack });
-    res.status(500).json({ error: error.message, timestamp: new Date().toISOString() });
-  }
-});
-
-// Corrected /process_payment endpoint
-app.post("/process_payment", async (req, res) => {
-  const { payment_intent_id, reader_id } = req.body;
-
-  // Validate inputs
-  if (!payment_intent_id || !reader_id) {
-    return res.status(400).json({ error: "Missing payment_intent_id or reader_id", timestamp: new Date().toISOString() });
-  }
-
-  // Basic validation for reader_id format (example: starts with "tmr_")
-  if (!reader_id.startsWith("tmr_")) {
-    return res.status(400).json({ error: "Invalid reader_id format", timestamp: new Date().toISOString() });
-  }
-
-  let attempt = 0;
-  const maxAttempts = 3;
-
-  while (attempt < maxAttempts) {
-    attempt++;
-    try {
-      // Process the payment intent with the reader
-      const reader = await stripe.terminal.readers.processPaymentIntent(
-        reader_id,
-        { payment_intent: payment_intent_id }
-      );
-
-      // Retrieve the payment intent to confirm its status
-      const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
-      return res.json({
-        status: paymentIntent.status,
-        reader: reader,
-        paymentIntent: paymentIntent, // Include full payment intent for client
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error("Error in /process_payment:", error.message, { stack: error.stack });
-      switch (error.code) {
-        case "terminal_reader_timeout":
-          if (attempt === maxAttempts) {
-            return res.status(500).json({ error: "Reader timeout after multiple attempts", timestamp: new Date().toISOString() });
-          }
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
-          break;
-        case "terminal_reader_offline":
-        case "terminal_reader_busy":
-        case "intent_invalid_state":
-          return res.status(400).json({ error: error.message, timestamp: new Date().toISOString() });
-        default:
-          return res.status(500).json({ error: error.message, timestamp: new Date().toISOString() });
+    function initTerminal() {
+      stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp'); // Your live publishable key
+      if (typeof stripe.terminal === 'function') {
+        terminal = stripe.terminal();
+        console.log('Terminal initialized successfully');
+        window.terminal = terminal;
+      } else {
+        console.error('Terminal SDK not available');
+        document.getElementById('status').innerText = 'Status: Terminal SDK failed to load';
       }
     }
-  }
-  return res.status(500).json({ error: "Max retry attempts reached", timestamp: new Date().toISOString() });
-});
 
-// Start the server
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Server running on port", process.env.PORT || 3000);
-});
+    async function startPayment() {
+      if (!window.terminal) {
+        document.getElementById('status').innerText = 'Status: Terminal not initialized';
+        return;
+      }
+      try {
+        const amount = parseInt(document.getElementById('amount').value, 10);
+        if (!amount || amount <= 0) {
+          document.getElementById('status').innerText = 'Status: Please enter a valid amount';
+          return;
+        }
+        document.getElementById('status').innerText = 'Status: Starting payment...';
+
+        const tokenResponse = await fetch('https://stripe-backend-iu4y.onrender.com/connection_token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!tokenResponse.ok) throw new Error('Failed to fetch connection token');
+        const tokenData = await tokenResponse.json();
+        if (!tokenData.secret) throw new Error('No connection token secret received');
+        window.terminal.setConnectionToken(tokenData.secret);
+
+        document.getElementById('status').innerText = 'Status: Finding reader...';
+        const { discoveredReaders } = await window.terminal.discoverReaders({
+          label: 'tmr_F8CkCQBavVhEbw'
+        });
+        if (discoveredReaders.length === 0) {
+          document.getElementById('status').innerText = 'Status: No readers found';
+          return;
+        }
+        const reader = discoveredReaders[0];
+
+        document.getElementById('status').innerText = 'Status: Connecting to reader...';
+        await window.terminal.connectReader(reader);
+
+        document.getElementById('status').innerText = 'Status: Creating payment intent...';
+        const intentResponse = await fetch('https://stripe-backend-iu4y.onrender.com/create_payment_intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: amount })
+        });
+        if (!intentResponse.ok) throw new Error('Failed to create payment intent');
+        const intentData = await intentResponse.json();
+        if (!intentData.clientSecret) throw new Error('No client secret received');
+
+        document.getElementById('status').innerText = 'Status: Tap, insert, or swipe card...';
+        const { paymentIntent } = await window.terminal.collectPaymentMethod(intentData.clientSecret);
+
+        document.getElementById('status').innerText = 'Status: Processing payment...';
+        await window.terminal.processPayment(paymentIntent);
+
+        document.getElementById('status').innerText = 'Status: Payment complete!';
+      } catch (error) {
+        document.getElementById('status').innerText = 'Status: Error - ' + error.message;
+        console.error('Payment error:', error);
+      }
+    }
+  </script>
+</body>
+</html>
