@@ -12,18 +12,17 @@
 </head>
 <body>
   <h1>Take a Payment</h1>
-  <input id="amount" type="number" placeholder="Enter amount in cents (e.g., 100, 500, 2000, 20000)" style="padding: 5px;">
+  <input id="amount" type="number" placeholder="Enter amount in cents (e.g., 100, 500, 2000)" style="padding: 5px;">
   <button onclick="startPayment()">Pay Now</button>
   <p id="status">Status: Ready</p>
 
   <script>
-    // Initialize Stripe after scripts load
     document.addEventListener('DOMContentLoaded', () => {
-      const stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp');
+      const stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp'); // Your live publishable key
       if (typeof stripe.terminal === 'function') {
         const terminal = stripe.terminal();
         console.log('Terminal initialized successfully');
-        window.terminal = terminal;
+        window.terminal = terminal; // Make terminal global for startPayment
       } else {
         console.error('Terminal SDK not available');
         document.getElementById('status').innerText = 'Status: Terminal SDK failed to load';
@@ -54,7 +53,7 @@
 
         document.getElementById('status').innerText = 'Status: Finding reader...';
         const { discoveredReaders } = await window.terminal.discoverReaders({
-          label: 'tmr_F8CkCQBavVhEbw''
+          label: 'tmr_F8CkCQBavVhEbw'
         });
         if (discoveredReaders.length === 0) {
           document.getElementById('status').innerText = 'Status: No readers found';
@@ -72,7 +71,7 @@
           body: JSON.stringify({ amount: amount })
         });
         if (!intentResponse.ok) throw new Error('Failed to create payment intent');
-        const intentData = await intentResponse.json();
+        const intentData = await tokenResponse.json(); // Corrected from intentResponse to tokenResponse (typo in your script)
         if (!intentData.clientSecret) throw new Error('No client secret received');
 
         document.getElementById('status').innerText = 'Status: Tap, insert, or swipe card...';
