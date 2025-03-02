@@ -8,7 +8,7 @@
     #status { color: blue; margin-top: 10px; }
   </style>
   <script src="https://js.stripe.com/v3/" onload="console.log('Stripe.js loaded')"></script>
-  <script src="https://js.stripe.com/terminal/v1/" onload="console.log('Terminal SDK loaded'); initTerminal()"></script>
+  <script src="https://js.stripe.com/terminal/v1/" onload="initTerminal()"></script> <!-- Simplified onload call -->
 </head>
 <body>
   <h1>Take a Payment</h1>
@@ -19,8 +19,10 @@
   <script>
     let stripe, terminal;
 
+    // Define initTerminal globally
     function initTerminal() {
       stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp'); // Your live publishable key
+      console.log('Initializing Terminal SDK');
       if (typeof stripe.terminal === 'function') {
         terminal = stripe.terminal();
         console.log('Terminal initialized successfully');
