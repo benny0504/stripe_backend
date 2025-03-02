@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> <!-- Ensure Standards Mode -->
 <html>
 <head>
   <title>Stripe Terminal Payment</title>
@@ -7,99 +7,87 @@
     button { padding: 10px 20px; font-size: 16px; }
     #status { color: blue; margin-top: 10px; }
   </style>
-  <!-- Load scripts in correct order -->
-  <script src="https://js.stripe.com/v3/"></script>
-  <script src="https://js.stripe.com/terminal/v1/"></script>
+  <script src="https://js.stripe.com/v3/" onload="console.log('Stripe.js loaded')"></script>
+  <script src="https://js.stripe.com/terminal/v1/" onload="initializeTerminal()"></script> <!-- Direct call to global function -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💳</text></svg>"> <!-- Optional favicon -->
 </head>
 <body>
   <h1>Take a Payment</h1>
-  <input id="amount" type="number" placeholder="Enter amount in cents (e.g., 100, 500, 2000)">
+  <input id="amount" type="number" placeholder="Enter amount in cents (e.g., 100, 500, 2000)" style="padding: 5px;">
   <button onclick="startPayment()">Pay Now</button>
   <p id="status">Status: Ready</p>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💳</text></svg>">
 
-<script>
-// Initialize Stripe and Terminal with proper loading sequence
-let stripe, terminal;
+  <script>
+    let stripe, terminal;
 
-// Load Stripe.js first
-const stripeScript = document.createElement('script');
-stripeScript.src = 'https://js.stripe.com/v3/';
-stripeScript.onload = () => {
-  // Load Terminal SDK after Stripe.js
-  const terminalScript = document.createElement('script');
-  terminalScript.src = 'https://js.stripe.com/v3/';
-  terminalScript.onload = initializeTerminal;
-  document.head.appendChild(terminalScript);
-};
-document.head.appendChild(stripeScript);
-
-function initializeTerminal() {
-  stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp');
-  
-  if (stripe.terminal) {
-    terminal = stripe.terminal({
-      onUnexpectedReaderDisconnect: () => {
-        document.getElementById('status').innerText = 'Status: Reader disconnected!';
-      }
-    });
-    document.getElementById('status').innerText = 'Status: Terminal ready!';
-    console.log('Terminal initialized successfully');
-  } else {
-    document.getElementById('status').innerText = 'Status: Terminal not supported';
-    console.error('Stripe Terminal not available');
-  }
-}
-
-// Rest of your startPayment() function remains the same
-</script>
-    async function startPayment() {
-      if(!terminal) {
-        document.getElementById('status').innerText = 'Status: Terminal not ready - try again';
-        return;
-      }
-
-      try {
-        // Clear previous state
-        document.getElementById('status').innerText = 'Status: Starting...';
-        
-        // Validate amount
-        const amount = parseInt(document.getElementById('amount').value);
-        if(!amount || amount < 100) throw new Error('Minimum amount: $1.00');
-
-        // Get connection token
-        const tokenRes = await fetch('https://stripe-backend-iu4y.onrender.com/connection_token');
-        if(!tokenRes.ok) throw new Error('Connection failed');
-        const { secret } = await tokenRes.json();
-        terminal.setConnectionToken(secret);
-
-        // Discover readers
-        document.getElementById('status').innerText = 'Status: Searching readers...';
-        const { discoveredReaders } = await terminal.discoverReaders();
-        if(!discoveredReaders.length) throw new Error('No readers found');
-        
-        // Connect to first reader
-        const reader = await terminal.connectReader(discoveredReaders[0]);
-        document.getElementById('status').innerText = `Status: Connected to ${reader.label}`;
-
-        // Create payment intent
-        const intentRes = await fetch('https://stripe-backend-iu4y.onrender.com/create_payment_intent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount })
+    // Define initializeTerminal globally to ensure it's accessible from onload
+    function initializeTerminal() {
+      stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp'); // Your live publishable key
+      console.log('Initializing Terminal SDK');
+      if (typeof stripe.terminal === 'function') {
+        terminal = stripe.terminal({
+          onUnexpectedReaderDisconnect: () => {
+            document.getElementById('status').innerText = 'Status: Reader disconnected!';
+          }
         });
-        const { client_secret } = await intentRes.json();
-
-        // Collect payment
-        const { paymentIntent } = await terminal.collectPaymentMethod(client_secret);
-        await terminal.processPayment(paymentIntent);
-        document.getElementById('status').innerText = 'Status: Payment successful!';
-        
-      } catch(err) {
-        document.getElementById('status').innerText = `Status: ${err.message}`;
-        console.error('Payment error:', err);
+        console.log('Terminal initialized successfully');
+        window.terminal = terminal;
+        document.getElementById('status').innerText = 'Status: Terminal ready!';
+      } else {
+        console.error('Stripe Terminal not available');
+        document.getElementById('status').innerText = 'Status: Terminal SDK failed to load';
       }
     }
-  </script>
-</body>
-</html>
+
+    async function startPayment() {
+      if (!window.terminal) {
+        document.getElementById('status').innerText = 'Status: Terminal not initialized - try again';
+        return;
+      }
+      try {
+        const amount = parseInt(document.getElementById('amount').value, 10);
+        if (!amount || amount <= 0) {
+          document.getElementById('status').innerText = 'Status: Please enter a valid amount';
+          return;
+        }
+        document.getElementById('status').innerText = 'Status: Starting payment...';
+
+        const tokenResponse = await fetch('https://stripe-backend-iu4y.onrender.com/connection_token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!tokenResponse.ok) throw new Error('Failed to fetch connection token');
+        const tokenData = await tokenResponse.json();
+        if (!tokenData.secret) throw new Error('No connection token secret received');
+        window.terminal.setConnectionToken(tokenData.secret);
+
+        document.getElementById('status').innerText = 'Status: Finding reader...';
+        const { discoveredReaders } = await window.terminal.discoverReaders({
+          label: 'tmr_F8CkCQBavVhEbw'
+        });
+        if (discoveredReaders.length === 0) {
+          document.getElementById('status').innerText = 'Status: No readers found';
+          return;
+        }
+        const reader = discoveredReaders[0];
+
+        document.getElementById('status').innerText = 'Status: Connecting to reader...';
+        await window.terminal.connectReader(reader);
+
+        document.getElementById('status').innerText = 'Status: Creating payment intent...';
+        const intentResponse = await fetch('https://stripe-backend-iu4y.onrender.com/create_payment_intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: amount })
+        });
+        if (!intentResponse.ok) throw new Error('Failed to create payment intent');
+        const intentData = await intentResponse.json();
+        if (!intentData.clientSecret) throw new Error('No client secret received');
+
+        document.getElementById('status').innerText = 'Status: Tap, insert, or swipe card...';
+        const { paymentIntent } = await window.terminal.collectPaymentMethod(intentData.clientSecret);
+
+        document.getElementById('status').innerText = 'Status: Processing payment...';
+        await window.terminal.processPayment(paymentIntent);
+
+        document.getElement

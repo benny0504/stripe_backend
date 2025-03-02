@@ -10,9 +10,11 @@ app.use(express.static("public")); // Serve static files (e.g., terminal.html)
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(cors({
-  origin: ["https://stripe-backend-iu4y.onrender.com", "http://localhost:8080"] // Allow Render HTTPS and local dev
+  origin: ["https://stripe-backend-iu4y.onrender.com", "http://localhost:8080"],
+  optionsSuccessStatus: 200, // For legacy browser support
+  exposedHeaders: ["Content-Security-Policy"],
+  credentials: true // If needed for cookies/auth
 }));
-
 // Check if STRIPE_SECRET_KEY is set
 if (!process.env.STRIPE_SECRET_KEY) {
   console.error("Error: STRIPE_SECRET_KEY environment variable is not set");
