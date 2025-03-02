@@ -1,7 +1,8 @@
+require('dotenv').config();
 const express = require("express");
 const app = express();
 const { resolve } = require("path");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY); // Use live secret key in .env or Render
+const stripe = require("stripe")("(process.env.STRIPE_SECRET_KEY)"); // Use live secret key in Render environment
 const cors = require("cors");
 
 // Middleware setup
@@ -11,6 +12,12 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(cors({
   origin: ["https://stripe-backend-iu4y.onrender.com", "http://localhost:8080"] // Allow Render HTTPS and local dev
 }));
+
+// Check if STRIPE_SECRET_KEY is set
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error("Error: STRIPE_SECRET_KEY environment variable is not set");
+  process.exit(1);
+}
 
 // Endpoint to create a connection token for the Stripe Terminal
 app.post("/connection_token", async (req, res) => {
@@ -52,7 +59,7 @@ app.post("/process_payment", async (req, res) => {
     return res.status(400).json({ error: "Missing payment_intent_id or reader_id", timestamp: new Date().toISOString() });
   }
 
-  // Basic validation for reader_id format (example: starts with "tmr_")
+  // Basic validation for reader_id format (starts with "tmr_")
   if (!reader_id.startsWith("tmr_")) {
     return res.status(400).json({ error: "Invalid reader_id format", timestamp: new Date().toISOString() });
   }
