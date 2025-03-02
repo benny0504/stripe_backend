@@ -2,12 +2,13 @@ const express = require("express");
 const app = express();
 const { resolve } = require("path");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const cors = require("cors"); // Add CORS
 
-app.use(express.static("public")); // Optional, for future static files
+app.use(express.static("public"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cors({ origin: "http://localhost:8080" })); // Allow localhost
 
-// Connection token endpoint (for your terminal.html)
 app.post("/connection_token", async (req, res) => {
   try {
     const token = await stripe.terminal.connectionTokens.create();
@@ -18,7 +19,6 @@ app.post("/connection_token", async (req, res) => {
   }
 });
 
-// Create payment intent endpoint
 app.post("/create_payment_intent", async (req, res) => {
   try {
     const { amount } = req.body;
@@ -26,7 +26,7 @@ app.post("/create_payment_intent", async (req, res) => {
       amount,
       currency: "usd",
       payment_method_types: ["card_present"],
-      capture_method: "automatic", // Matches your original setup
+      capture_method: "automatic",
     });
     res.json({ clientSecret: intent.client_secret });
   } catch (error) {
@@ -35,7 +35,6 @@ app.post("/create_payment_intent", async (req, res) => {
   }
 });
 
-// Process payment endpoint (uses your registered reader)
 app.post("/process_payment", async (req, res) => {
   var attempt = 0;
   const tries = 3;
@@ -43,7 +42,7 @@ app.post("/process_payment", async (req, res) => {
     attempt++;
     try {
       const reader = await stripe.terminal.readers.processPaymentIntent(
-        "WSC513208022998", // Your registered WisePOS E serial number
+        "WSC513208022998",
         { payment_intent: req.body.payment_intent_id }
       );
       return res.send(reader);
@@ -56,9 +55,7 @@ app.post("/process_payment", async (req, res) => {
         case "terminal_reader_offline":
         case "terminal_reader_busy":
         case "intent_invalid_state":
-          const paymentIntent = await stripe.paymentIntents.retrieve(
-            req.body.payment_intent_id
-          );
+          const paymentIntent = await stripe.paymentIntents.retrieve(req.body.payment_intent_id);
           console.log("PaymentIntent state:", paymentIntent.status);
           return res.send(error);
         default:
@@ -68,12 +65,9 @@ app.post("/process_payment", async (req, res) => {
   }
 });
 
-// Simulate payment endpoint (for testing)
 app.post("/simulate_payment", async (req, res) => {
   try {
-    const reader = await stripe.testHelpers.terminal.readers.presentPaymentMethod(
-      "WSC513208022998" // Your WisePOS E serial
-    );
+    const reader = await stripe.testHelpers.terminal.readers.presentPaymentMethod("WSC513208022998");
     res.send(reader);
   } catch (error) {
     console.log("Error in /simulate_payment:", error.message);
@@ -81,7 +75,6 @@ app.post("/simulate_payment", async (req, res) => {
   }
 });
 
-// Capture payment intent endpoint (optional, since you use automatic capture)
 app.post("/capture_payment_intent", async (req, res) => {
   try {
     const intent = await stripe.paymentIntents.capture(req.body.payment_intent_id);
@@ -92,5 +85,4 @@ app.post("/capture_payment_intent", async (req, res) => {
   }
 });
 
-// Render-compatible port
 app.listen(process.env.PORT || 3000, () => console.log("Server running"));
