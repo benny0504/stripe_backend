@@ -19,11 +19,11 @@
   <script>
     // Initialize Stripe after scripts load
     document.addEventListener('DOMContentLoaded', () => {
-      const stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp'); // Your live publishable key
+      const stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp');
       if (typeof stripe.terminal === 'function') {
         const terminal = stripe.terminal();
         console.log('Terminal initialized successfully');
-        window.terminal = terminal; // Make terminal global for startPayment
+        window.terminal = terminal;
       } else {
         console.error('Terminal SDK not available');
         document.getElementById('status').innerText = 'Status: Terminal SDK failed to load';
@@ -36,9 +36,9 @@
         return;
       }
       try {
-        const amount = document.getElementById('amount').value;
-        if (!amount) {
-          document.getElementById('status').innerText = 'Status: Please enter an amount';
+        const amount = parseInt(document.getElementById('amount').value, 10);
+        if (!amount || amount <= 0) {
+          document.getElementById('status').innerText = 'Status: Please enter a valid amount';
           return;
         }
         document.getElementById('status').innerText = 'Status: Starting payment...';
@@ -47,12 +47,14 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
+        if (!tokenResponse.ok) throw new Error('Failed to fetch connection token');
         const tokenData = await tokenResponse.json();
+        if (!tokenData.secret) throw new Error('No connection token secret received');
         window.terminal.setConnectionToken(tokenData.secret);
 
         document.getElementById('status').innerText = 'Status: Finding reader...';
         const { discoveredReaders } = await window.terminal.discoverReaders({
-          label: 'WSC513208022998'
+          label: 'tmr_F8CkCQBavVhEbw''
         });
         if (discoveredReaders.length === 0) {
           document.getElementById('status').innerText = 'Status: No readers found';
@@ -69,7 +71,9 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: amount })
         });
+        if (!intentResponse.ok) throw new Error('Failed to create payment intent');
         const intentData = await intentResponse.json();
+        if (!intentData.clientSecret) throw new Error('No client secret received');
 
         document.getElementById('status').innerText = 'Status: Tap, insert, or swipe card...';
         const { paymentIntent } = await window.terminal.collectPaymentMethod(intentData.clientSecret);
