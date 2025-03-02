@@ -5,10 +5,14 @@ const { resolve } = require("path");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const cors = require("cors"); // Add CORS
 
+// Middleware setup
 app.use(express.static("public"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({ origin: "http://localhost:8080" })); // Allow localhost
+
+// CORS configuration
+app.use(cors({ origin: "https://your-frontend.com" })); // Allow your frontend domain
+app.use(cors({ origin: "http://localhost:8080" })); // Allow localhost (for development)
 
 app.post("/connection_token", async (req, res) => {
   try {
@@ -37,51 +41,66 @@ app.post("/create_payment_intent", async (req, res) => {
 });
 
 app.post("/process_payment", async (req, res) => {
-  var attempt = 0;
+  const { payment_intent_id, reader_id } = req.body; // Use reader_id from request
+  let attempt = 0;
   const tries = 3;
+
   while (true) {
     attempt++;
     try {
       const reader = await stripe.terminal.readers.processPaymentIntent(
-        "WSC513208022998",
-        { payment_intent: req.body.payment_intent_id }
+        reader_id, // Use reader_id from request
+        { payment_intent: payment_intent_id }
       );
-      return res.send(reader);
+      return res.json(reader);
     } catch (error) {
-      console.log("Error in /process_payment:", error.message);
+      console.error("Error in /process_payment:", error.message);
+
       switch (error.code) {
         case "terminal_reader_timeout":
-          if (attempt === tries) return res.send(error);
+          if (attempt === tries) {
+            return res.status(500).json({ error: "Reader timeout after retries" });
+          }
           break;
+
         case "terminal_reader_offline":
+          return res.status(500).json({ error: "Reader is offline" });
+
         case "terminal_reader_busy":
+          return res.status(500).json({ error: "Reader is busy" });
+
         case "intent_invalid_state":
-          const paymentIntent = await stripe.paymentIntents.retrieve(req.body.payment_intent_id);
+          const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
           console.log("PaymentIntent state:", paymentIntent.status);
-          return res.send(error);
+          return res.status(500).json({ error: `PaymentIntent is in invalid state: ${paymentIntent.status}` });
+
         default:
-          return res.send(error);
+          return res.status(500).json({ error: error.message });
       }
     }
   }
 });
 
 app.post("/simulate_payment", async (req, res) => {
+  const { reader_id } = req.body; // Use reader_id from request
+
   try {
-    const reader = await stripe.testHelpers.terminal.readers.presentPaymentMethod("WSC513208022998");
-    res.send(reader);
+    const reader = await stripe.testHelpers.terminal.readers.presentPaymentMethod(reader_id);
+    res.json(reader);
   } catch (error) {
-    console.log("Error in /simulate_payment:", error.message);
+    console.error("Error in /simulate_payment:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
 app.post("/capture_payment_intent", async (req, res) => {
+  const { payment_intent_id } = req.body;
+
   try {
-    const intent = await stripe.paymentIntents.capture(req.body.payment_intent_id);
-    res.send(intent);
+    const intent = await stripe.paymentIntents.capture(payment_intent_id);
+    res.json(intent);
   } catch (error) {
-    console.log("Error in /capture_payment_intent:", error.message);
+    console.error("Error in /capture_payment_intent:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
