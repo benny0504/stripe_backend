@@ -8,7 +8,7 @@
     #status { color: blue; margin-top: 10px; }
   </style>
   <script src="https://js.stripe.com/v3/" onload="console.log('Stripe.js loaded')"></script>
-  <script src="https://js.stripe.com/terminal/v1/" onload="console.log('Terminal SDK loaded')"></script>
+  <script src="https://js.stripe.com/terminal/v1/" onload="console.log('Terminal SDK loaded'); initTerminal()"></script>
 </head>
 <body>
   <h1>Take a Payment</h1>
@@ -17,17 +17,19 @@
   <p id="status">Status: Ready</p>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp'); // Your live publishable key
+    let stripe, terminal;
+
+    function initTerminal() {
+      stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp'); // Your live publishable key
       if (typeof stripe.terminal === 'function') {
-        const terminal = stripe.terminal();
+        terminal = stripe.terminal();
         console.log('Terminal initialized successfully');
-        window.terminal = terminal; // Make terminal global for startPayment
+        window.terminal = terminal;
       } else {
         console.error('Terminal SDK not available');
         document.getElementById('status').innerText = 'Status: Terminal SDK failed to load';
       }
-    });
+    }
 
     async function startPayment() {
       if (!window.terminal) {
@@ -71,7 +73,7 @@
           body: JSON.stringify({ amount: amount })
         });
         if (!intentResponse.ok) throw new Error('Failed to create payment intent');
-        const intentData = await tokenResponse.json(); // Corrected from intentResponse to tokenResponse (typo in your script)
+        const intentData = await intentResponse.json();
         if (!intentData.clientSecret) throw new Error('No client secret received');
 
         document.getElementById('status').innerText = 'Status: Tap, insert, or swipe card...';
