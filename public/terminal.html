@@ -28,7 +28,7 @@ stripeScript.src = 'https://js.stripe.com/v3/';
 stripeScript.onload = () => {
   // Load Terminal SDK after Stripe.js
   const terminalScript = document.createElement('script');
-  terminalScript.src = 'https://js.stripe.com/terminal/v1/';
+  terminalScript.src = 'https://js.stripe.com/v3/';
   terminalScript.onload = initializeTerminal;
   document.head.appendChild(terminalScript);
 };
