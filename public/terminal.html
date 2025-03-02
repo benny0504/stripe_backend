@@ -16,34 +16,43 @@
   <input id="amount" type="number" placeholder="Enter amount in cents (e.g., 100, 500, 2000)">
   <button onclick="startPayment()">Pay Now</button>
   <p id="status">Status: Ready</p>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💳</text></svg>">
 
-  <script>
-    // Initialize first
-    let stripe, terminal;
+<script>
+// Initialize Stripe and Terminal with proper loading sequence
+let stripe, terminal;
 
-    // Initialize when both SDKs are loaded
-    Promise.all([
-      new Promise(resolve => {
-        if(typeof Stripe === 'function') resolve();
-        else window.addEventListener('stripe-loaded', resolve);
-      }),
-      new Promise(resolve => {
-        if(typeof StripeTerminal === 'function') resolve();
-        else window.addEventListener('terminal-loaded', resolve);
-      })
-    ]).then(() => {
-      stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp');
-      
-      if(stripe.terminal) {
-        terminal = stripe.terminal();
-        console.log('Terminal initialized');
-        document.getElementById('status').innerText = 'Status: Terminal ready';
-      } else {
-        console.error('Terminal not available');
-        document.getElementById('status').innerText = 'Status: Terminal SDK failed';
+// Load Stripe.js first
+const stripeScript = document.createElement('script');
+stripeScript.src = 'https://js.stripe.com/v3/';
+stripeScript.onload = () => {
+  // Load Terminal SDK after Stripe.js
+  const terminalScript = document.createElement('script');
+  terminalScript.src = 'https://js.stripe.com/terminal/v1/';
+  terminalScript.onload = initializeTerminal;
+  document.head.appendChild(terminalScript);
+};
+document.head.appendChild(stripeScript);
+
+function initializeTerminal() {
+  stripe = Stripe('pk_live_51QuKJvKfKNSn8CEg1mdEIobg8aFI2CKwc8kspxxVU7rcLvnkOINfHAbZtj0gnWF2au28AkKg8HeRXNxcDZgb1dDX00AhkwswGp');
+  
+  if (stripe.terminal) {
+    terminal = stripe.terminal({
+      onUnexpectedReaderDisconnect: () => {
+        document.getElementById('status').innerText = 'Status: Reader disconnected!';
       }
     });
+    document.getElementById('status').innerText = 'Status: Terminal ready!';
+    console.log('Terminal initialized successfully');
+  } else {
+    document.getElementById('status').innerText = 'Status: Terminal not supported';
+    console.error('Stripe Terminal not available');
+  }
+}
 
+// Rest of your startPayment() function remains the same
+</script>
     async function startPayment() {
       if(!terminal) {
         document.getElementById('status').innerText = 'Status: Terminal not ready - try again';
