@@ -53,7 +53,7 @@
         }
         document.getElementById('status').innerText = 'Status: Starting payment...';
 
-        const tokenResponse = await fetch('http://localhost:3000/connection_token', { // Updated for local testing
+        const tokenResponse = await fetch('http://localhost:8080/connection_token', { // Updated for local testing on port 8080
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -76,7 +76,7 @@
         await window.terminal.connectReader(reader);
 
         document.getElementById('status').innerText = 'Status: Creating payment intent...';
-        const intentResponse = await fetch('http://localhost:3000/create_payment_intent', { // Updated for local testing
+        const intentResponse = await fetch('http://localhost:8080/create_payment_intent', { // Updated for local testing on port 8080
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: amount })
