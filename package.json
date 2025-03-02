@@ -11,8 +11,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "stripe": "^17.7.0",
-    "cors": "^2.8.5"
-  }
+    "stripe": "^17.7.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/benny0504/stripe_backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/benny0504/stripe_backend/issues"
+  },
+  "homepage": "https://github.com/benny0504/stripe_backend#readme"
 }
