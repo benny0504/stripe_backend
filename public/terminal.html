@@ -39,6 +39,7 @@
       }
     }
 
+    // Define startPayment globally to ensure it's accessible from onclick
     async function startPayment() {
       if (!window.terminal) {
         document.getElementById('status').innerText = 'Status: Terminal not initialized - try again';
@@ -52,7 +53,7 @@
         }
         document.getElementById('status').innerText = 'Status: Starting payment...';
 
-        const tokenResponse = await fetch('https://stripe-backend-iu4y.onrender.com/connection_token', {
+        const tokenResponse = await fetch('http://localhost:3000/connection_token', { // Updated for local testing
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -75,7 +76,7 @@
         await window.terminal.connectReader(reader);
 
         document.getElementById('status').innerText = 'Status: Creating payment intent...';
-        const intentResponse = await fetch('https://stripe-backend-iu4y.onrender.com/create_payment_intent', {
+        const intentResponse = await fetch('http://localhost:3000/create_payment_intent', { // Updated for local testing
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: amount })
@@ -90,4 +91,12 @@
         document.getElementById('status').innerText = 'Status: Processing payment...';
         await window.terminal.processPayment(paymentIntent);
 
-        document.getElement
+        document.getElementById('status').innerText = 'Status: Payment complete!';
+      } catch (error) {
+        document.getElementById('status').innerText = `Status: Error - ${error.message}`;
+        console.error('Payment error:', error);
+      }
+    }
+  </script>
+</body>
+</html>
