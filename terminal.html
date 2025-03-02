@@ -19,7 +19,7 @@
   <script>
     let stripe, terminal;
     function initTerminal() {
-      stripe = Stripe('pk_test_xxxx'); // Your test publishable key
+      stripe = Stripe('pk_test_51QuKJvKfKNSn8CEg1pAQ3rxrYDbeE46Rs6sIv9tCV7WfjRVZj5jHpK5PFpDRRlv52CkKHnNi733ftudSIyVigp9700xG9cYfO3'); // Your test publishable key
       if (typeof stripe.terminal === 'function') {
         terminal = stripe.terminal();
         console.log('Terminal initialized successfully');
